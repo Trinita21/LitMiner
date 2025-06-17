@@ -11,9 +11,11 @@ CREATE TABLE "Author" (
     "name" string   NOT NULL,
     "bio" text   NULL,
     "entity_type" string   NULL,
-    "birth_date" date   NULL,
+    "birth_date" string   NULL,
+    "birth_year" int NULL,
     "personal_name" string   NULL,
-    "death_date" date   NULL,
+    "death_date" string   NULL,
+    "death_year" int   NULL,
     "title" string   NULL,
     "alternate_names" json   NULL,
     "keyVal" string   NOT NULL,
@@ -28,7 +30,8 @@ CREATE TABLE "Book" (
     "BookID" string   NOT NULL,
     "title" string   NOT NULL,
     "description" text   NULL,
-    "first_publish_date" date   NULL,
+    "first_publish_date" string   NULL,
+    "first_publish_year" int   NULL,
     -- subject_places json
     -- subjects json
     -- subject_people json
