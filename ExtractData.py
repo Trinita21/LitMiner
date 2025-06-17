@@ -27,6 +27,9 @@ def generate_authorInsert():
     coversFullList = []
     count = 0
     author_book_roles = set()
+    subject_entries = set()
+    subjectXBooks = set()
+    coverBookStatements = []
 
     # Step 2: Loop through author IDs and call the detailed API
     for author in data.get('docs', []):
@@ -154,6 +157,23 @@ def generate_authorInsert():
                     if match:
                         fPublish_year = int(match.group(1))
 
+                #Subject
+                for desc in workOfAuthor.get('subject_places',[]):
+                    subject_entries.add(('place',desc))
+                    subjectXBooks.add(work_id,('place',desc))
+
+                for desc in workOfAuthor.get('subjects', []):
+                    subject_entries.add(('topic', desc))
+                    subjectXBooks.add(work_id,('topic',desc))
+
+                for desc in workOfAuthor.get('subject_people', []):
+                    subject_entries.add(('people', desc))
+                    subjectXBooks.add(work_id,('people',desc))
+
+                for desc in workOfAuthor.get('subject_times', []):
+                    subject_entries.add(('time', desc))
+                    subjectXBooks.add(work_id,('time',desc))
+
                 #Cover Data
                 coverList = workOfAuthor.get('covers',None)
                 if not isinstance(coverList,list):
@@ -161,9 +181,7 @@ def generate_authorInsert():
 
                 for cover in coverList:
                     coversFullList.append(cover)
-                    coversFullList
-                    sql_CoverBook = f"""INSERT INTO BooksCover (BookID, CoverID) 
-                                        VALUES ('{work_id}',{cover});"""
+                    coverBookStatements.append((work_id,cover))
 
                 #Book's author data
                 authorsxBookL = workOfAuthor.get('authors',None)
@@ -197,16 +215,51 @@ def generate_authorInsert():
         for statement in sql_statements:
             f.write(statement + '\n')
 
-    generate_coverScript(coversFullList)
+    generate_coverScript(coversFullList,coverBookStatements)
+    generate_booksByAuthor(author_book_roles)
+    generate_subjectScript(subject_entries,subjectXBooks)
     print("Generated SQL statements saved to insert_authors.sql")
 
-def generate_coverScript(coversFullList):
+def generate_coverScript(coversFullList,coverBookStatements):
     coversFullList = list(set(coversFullList))
-    
-    with open('insert_authors.sql', 'w', encoding='utf-8') as f:
+    coverBookStatements = list(set(coverBookStatements))
+    with open('insert_covers.sql', 'w', encoding='utf-8') as f:
         for cover in coversFullList:
-            sql_CoverBook = f"""INSERT INTO Cover (CoverID) VALUES ('{cover}');"""
+            sql_CoverBook = f"""INSERT INTO Cover (CoverID) VALUES ({cover});"""
             f.write(sql_CoverBook + '\n')
 
-    
+    with open('inser_bookCover.sql','w',encoding='utf-8') as f:
+        for (work_id,cover) in coverBookStatements:
+            sql_CoverBook = f"""INSERT INTO BooksCover (BookID, CoverID) 
+                                        VALUES ('{work_id}',{cover});"""
+            f.write(sql_CoverBook + '\n')
 
+def generate_booksByAuthor(author_book_roles):
+    
+    with open('insert_bookAuthors.sql', 'w', encoding='utf-8') as f:
+        for author_id, book_id, role in author_book_roles:
+            sql_authorxBook = f"""INSERT INTO BooksAuthors (AuthorID, BookID, rol_type) 
+                                VALUES ('{author_id}', '{book_id}', '{role}');"""
+            f.write(sql_authorxBook + '\n')
+
+
+def generate_subjectScript(subject_entries,subjectXBooks):
+    subject_id_map = {}
+    subject_id = 1  # or resume from max id if you're appending
+
+    with open('insert_subjects.sql', 'w', encoding='utf-8') as f:
+        for subject_type, description in sorted(subject_entries):
+            sql = (
+                f"INSERT INTO Subjects (SubjectID, type, description) "
+                f"VALUES ({subject_id}, '{subject_type}', '{description}');"
+            )
+            f.write(sql + '\n')
+            
+            subject_id_map[(subject_type, description)] = subject_id
+            subject_id += 1
+
+    with open('insert_subjectXBook.sql','w',encoding='utf-8') as f:
+        for work_id, (stype, sdesc) in subjectXBooks:
+            sid = subject_id_map[(stype, sdesc)]
+            sql = f"INSERT INTO BookSubjects (BookID, SubjectID) VALUES ('{work_id}', {sid});"
+            f.write(sql + '\n')
