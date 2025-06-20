@@ -32,11 +32,6 @@ CREATE TABLE "Book" (
     "description" text   NULL,
     "first_publish_date" string   NULL,
     "first_publish_year" int   NULL,
-    -- subject_places json
-    -- subjects json
-    -- subject_people json
-    -- subject_times json
-    -- covers json
     "created" datetime   NOT NULL,
     "last_modified" datetime   NULL,
     CONSTRAINT "pk_Book" PRIMARY KEY (
@@ -65,7 +60,7 @@ CREATE TABLE "BooksCover" (
 CREATE TABLE "Subjects" (
     "SubjectID" int   NOT NULL,
     -- places,people,times,topic
-    "type" string   NOT NULL,
+    "subj_type" string   NOT NULL,
     "description" string   NOT NULL,
     CONSTRAINT "pk_Subjects" PRIMARY KEY (
         "SubjectID"

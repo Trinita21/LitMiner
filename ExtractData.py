@@ -2,6 +2,9 @@ import requests
 import time
 import json
 import re
+import sys
+import csv
+import traceback
 from datetime import datetime
 
 def sql_escape(s):
@@ -15,15 +18,50 @@ def safe_sql_value(value):
     else:
         return f"'{value}'"
 
-def generate_authorInsert():
-
+def fetch_and_save_authorLists(filename):
+    
     # Step 1: Call the API to get list of authors
-    url = "https://openlibrary.org/search/authors.json?q=*&limit=100"
+    url = "https://openlibrary.org/search/authors.json?q=*&limit=500"
     response = requests.get(url)
-    data = response.json()
+    
+    # Check for HTTP status code
+    if response.status_code != 200:
+        print(f"Error: Received status code {response.status_code}")
+        print(response.text)  # Optional: see what was returned
+        return
+    
+    try:
+        data = response.json()
+    except Exception as e:
+        print("Failed to parse JSON response:")
+        print(response.text[:200])  # Print part of the response to help debug
+        raise e
+
+
+    author_keys = []
+    # Step 2: Loop through author IDs and call the detailed API
+    for author in data.get('docs', []):
+        key  = author.get('key')  # Format: OL12345A
+        if key:
+            author_keys.append(key)
+    
+    with open(filename, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        for key in author_keys:
+            writer.writerow([key])
+
+    print(f"Saved {len(author_keys)} author IDs to {filename}")
+
+def generate_authorInsert(filename):
+
+    # Step 1: Read list of authors
+    with open(filename, newline='', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        author_ids = [row[0] for row in reader]
 
     # Step 2: Generate SQL INSERT statements
     sql_statements = []
+    book_statements = []
     coversFullList = []
     count = 0
     author_book_roles = set()
@@ -32,8 +70,8 @@ def generate_authorInsert():
     coverBookStatements = []
 
     # Step 2: Loop through author IDs and call the detailed API
-    for author in data.get('docs', []):
-        author_id = author.get('key')  # Format: OL12345A
+    for author_id in author_ids:
+        
         if not author_id:
             continue
 
@@ -120,6 +158,7 @@ def generate_authorInsert():
             );"""
             sql_statements.append(sql)
 
+            time.sleep(45)
             url_authorWorks = f"https://openlibrary.org/authors/{author_id}/works.json"
             
             authorWorks_response = requests.get(url_authorWorks)
@@ -160,55 +199,78 @@ def generate_authorInsert():
                 #Subject
                 for desc in workOfAuthor.get('subject_places',[]):
                     subject_entries.add(('place',desc))
-                    subjectXBooks.add(work_id,('place',desc))
+                    subjectXBooks.add((work_id,('place',desc)))
 
                 for desc in workOfAuthor.get('subjects', []):
                     subject_entries.add(('topic', desc))
-                    subjectXBooks.add(work_id,('topic',desc))
+                    subjectXBooks.add((work_id,('topic',desc)))
 
                 for desc in workOfAuthor.get('subject_people', []):
                     subject_entries.add(('people', desc))
-                    subjectXBooks.add(work_id,('people',desc))
+                    subjectXBooks.add((work_id,('people',desc)))
 
                 for desc in workOfAuthor.get('subject_times', []):
                     subject_entries.add(('time', desc))
-                    subjectXBooks.add(work_id,('time',desc))
+                    subjectXBooks.add((work_id,('time',desc)))
 
                 #Cover Data
                 coverList = workOfAuthor.get('covers',None)
                 if not isinstance(coverList,list):
                     coverList = None
-
-                for cover in coverList:
-                    coversFullList.append(cover)
-                    coverBookStatements.append((work_id,cover))
+                else:
+                    for cover in coverList:
+                        coversFullList.append(cover)
+                        coverBookStatements.append((work_id,cover))
 
                 #Book's author data
                 authorsxBookL = workOfAuthor.get('authors',None)
                 if not isinstance(authorsxBookL,list):
                     authorsxBookL = None
                 
-                for authorxBook in authorsxBookL:
-                    authorFull = authorxBook.get('author',None)
-                    authorV = authorFull.split('/')[-1]
-                    typeRole = authorxBook.get('type',None)
-                    typeV = typeRole.split('/')[-1]
+                if authorsxBookL:
+                    for authorxBook in authorsxBookL:
+                        authorFull = authorxBook.get('author',None)
+                        authorFull = authorFull.get('key',None)
+                        authorV = authorFull.split('/')[-1]
+                        typeRole = authorxBook.get('type',None)
+                        if isinstance(typeRole, dict):
+                            type_key = typeRole.get('key', None)
+                        elif isinstance(typeRole, str):
+                            type_key = typeRole 
+                        #typeRole = typeRole.get('key',None)
+                        typeV = type_key.split('/')[-1]
 
-                    if authorV is not None:
-                        triplet = (authorV,work_id,typeV)
+                        if authorV is not None:
+                            triplet = (authorV,work_id,typeV)
 
-                        if triplet not in author_book_roles:
-                            author_book_roles.add(triplet)
+                            if triplet not in author_book_roles:
+                                author_book_roles.add(triplet)
 
+                createdB_sql = f"'{createdB.isoformat(sep=' ')}'" if createdB else "NULL"
+                last_modifiedB_sql = f"'{last_modifiedB.isoformat(sep=' ')}'" if last_modifiedB else "NULL"
+                first_publish_date = f"'{sql_escape(first_publish_date)}'" if first_publish_date else "NULL"
+                fPublish_year = str(fPublish_year) if fPublish_year is not None else "NULL"
+                description = safe_sql_value(description)
+
+                book_sql = f"""INSERT INTO Book (
+                    BookID, title, description, first_publish_date, first_publish_year,
+                    created, last_modified
+                ) VALUES (
+                    '{work_id}', "{title}", {description}, {first_publish_date},
+                    {fPublish_year}, {createdB_sql}, {last_modifiedB_sql}
+                );"""
+                book_statements.append(book_sql)
 
             count = count + 1
-            #if count > 1000:
-            break
+            if count > 50:
+                break
 
         except Exception as e:
-            print(f"Failed to fetch data for author {author_id}: {e}")
+            exc_type, exc_obj, tb = sys.exc_info()
+            line_number = tb.tb_lineno
+            print(f"Failed to fetch data for author {author_id}: {e} (on line {line_number})")
 
-        time.sleep(0.5)  # Be nice to the API by not spamming requests
+        time.sleep(1)  # Be nice to the API by not spamming requests
 
     # Step 3: Save to a .sql file (optional)
     with open('insert_authors.sql', 'w', encoding='utf-8') as f:
@@ -216,6 +278,7 @@ def generate_authorInsert():
             f.write(statement + '\n')
 
     generate_coverScript(coversFullList,coverBookStatements)
+    generate_booksByScript(book_statements)
     generate_booksByAuthor(author_book_roles)
     generate_subjectScript(subject_entries,subjectXBooks)
     print("Generated SQL statements saved to insert_authors.sql")
@@ -234,6 +297,11 @@ def generate_coverScript(coversFullList,coverBookStatements):
                                         VALUES ('{work_id}',{cover});"""
             f.write(sql_CoverBook + '\n')
 
+def generate_booksByScript(book_statements):
+    with open('insert_books.sql','w',encoding='utf-8') as f:
+        for statement in book_statements:
+            f.write(statement + '\n')
+
 def generate_booksByAuthor(author_book_roles):
     
     with open('insert_bookAuthors.sql', 'w', encoding='utf-8') as f:
@@ -249,10 +317,8 @@ def generate_subjectScript(subject_entries,subjectXBooks):
 
     with open('insert_subjects.sql', 'w', encoding='utf-8') as f:
         for subject_type, description in sorted(subject_entries):
-            sql = (
-                f"INSERT INTO Subjects (SubjectID, type, description) "
-                f"VALUES ({subject_id}, '{subject_type}', '{description}');"
-            )
+            sql = f"""INSERT INTO Subjects (SubjectID, subj_type, description) 
+                    VALUES ({subject_id}, '{subject_type}', "{description}");"""
             f.write(sql + '\n')
             
             subject_id_map[(subject_type, description)] = subject_id
@@ -263,3 +329,7 @@ def generate_subjectScript(subject_entries,subjectXBooks):
             sid = subject_id_map[(stype, sdesc)]
             sql = f"INSERT INTO BookSubjects (BookID, SubjectID) VALUES ('{work_id}', {sid});"
             f.write(sql + '\n')
+
+filename = "author_ids.csv"
+#fetch_and_save_authorLists(filename)
+generate_authorInsert(filename)
