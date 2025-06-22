@@ -251,12 +251,14 @@ def generate_authorInsert(filename):
                 first_publish_date = f"'{sql_escape(first_publish_date)}'" if first_publish_date else "NULL"
                 fPublish_year = str(fPublish_year) if fPublish_year is not None else "NULL"
                 description = safe_sql_value(description)
+                title = f"'{sql_escape(title)}'" if title else "NULL"
+
 
                 book_sql = f"""INSERT INTO Book (
                     BookID, title, description, first_publish_date, first_publish_year,
                     created, last_modified
                 ) VALUES (
-                    '{work_id}', "{title}", {description}, {first_publish_date},
+                    '{work_id}', {title}, {description}, {first_publish_date},
                     {fPublish_year}, {createdB_sql}, {last_modifiedB_sql}
                 );"""
                 book_statements.append(book_sql)
@@ -317,8 +319,9 @@ def generate_subjectScript(subject_entries,subjectXBooks):
 
     with open('insert_subjects.sql', 'w', encoding='utf-8') as f:
         for subject_type, description in sorted(subject_entries):
+            description = f"'{sql_escape(description)}'" if description else "NULL"
             sql = f"""INSERT INTO Subjects (SubjectID, subj_type, description) 
-                    VALUES ({subject_id}, '{subject_type}', "{description}");"""
+                    VALUES ({subject_id}, '{subject_type}', {description});"""
             f.write(sql + '\n')
             
             subject_id_map[(subject_type, description)] = subject_id
