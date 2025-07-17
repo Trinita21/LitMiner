@@ -2,6 +2,7 @@ import psycopg2
 import xml.etree.ElementTree as ET
 from lxml import etree
 import streamlit as st
+import re
 
 # --- DB Connection ---
 @st.cache_resource
@@ -18,14 +19,28 @@ conn = connect_db()
 cursor = conn.cursor()
 
 # --- XML Conversion ---
+
+def clean_text(text):
+    if text:
+        return text.replace('\r\n', '\n').replace('\r', '\n').strip()
+    return ""
+
+def clean_description(text):
+    # Remove leading/trailing whitespace
+    text = text.strip()
+    # Replace multiple newlines and spaces with single space
+    text = re.sub(r'\s+', ' ', text)
+    # Optional: wrap long text if you want formatting (for terminal or basic HTML)
+    return text
+
 def books_to_xml(books):
-    root = ET.Element("Books")
+    root = etree.Element("Books")
     for book in books:
-        book_elem = ET.SubElement(root, "Book")
-        ET.SubElement(book_elem, "BookID").text = book[0]
-        ET.SubElement(book_elem, "Title").text = book[1]
-        ET.SubElement(book_elem, "Description").text = book[2]
-    return ET.tostring(root, encoding="unicode")
+        book_elem = etree.SubElement(root, "Book")
+        etree.SubElement(book_elem, "BookID").text = book[0]
+        etree.SubElement(book_elem, "Title").text = clean_text(book[1])
+        etree.SubElement(book_elem, "Description").text = clean_description(clean_text(book[2]))
+    return etree.tostring(root, pretty_print=True, encoding="unicode")
 
 # --- Streamlit UI ---
 st.title("📚 OpenLibrary Full-Text Book Search")
