@@ -4,7 +4,6 @@ import json
 import re
 import sys
 import csv
-import traceback
 from datetime import datetime
 
 def sql_escape(s):

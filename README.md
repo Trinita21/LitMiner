@@ -41,11 +41,11 @@ pip install -r requirements.txt
 
 ## 🛠️ How It Works
 
- 1. Database Setup:
+ 1. Database Setup (Optional):
  - Run sample_scripts/createDB_scripts/LitMinerDB.sql to create the database schema and set up foreign key constraints.
 	> See LitMinerDB.png for visual diagram of the database schema
 
- 2. Data Insertion:
+ 2. Data Insertion (Optional):
  - Use scripts in sample_scripts/insert_scripts/ to populate the tables with sample data.
  - Alternatively, use ExtractData.py to dynamically retrieve author and book data via the API.
 
@@ -60,9 +60,10 @@ DB_PASSWORD=your_password
 
  4. Querying and Search:
 
-- Use app.py to search the database by author, book title, or subject.
+- Use **app.py** to search the database by author, book title, or subject.
 - db_query_trial.py includes example query logic.
-![-](https://)
+![-](https://raw.githubusercontent.com/nataliapalomares/LitMiner/refs/heads/main/app_images/appy_search.jpeg)
+![-](https://raw.githubusercontent.com/nataliapalomares/LitMiner/refs/heads/main/app_images/appy_trial.jpeg)
 - search_result.xml shows a sample output in XML format.
 
 ## 🔎 Sample Output
@@ -70,10 +71,12 @@ A sample XML output (search_result.xml) is provided to illustrate how the data m
 
 ## 👩‍💻 Authors & Acknowledgments
 Natalia Palomares & Trinita Roy
+
 Master students in Computational Linguistics
+
 University of Stuttgart
 
 This project was developed as part of the Text Technology course SS2025.
 
-📜 License
+## 📜 License
 This project is for educational purposes. Please cite appropriately if reused or referenced.
