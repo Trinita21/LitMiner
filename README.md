@@ -2,6 +2,10 @@
 
 LitMiner is a Text Technology project designed to extract, store, and search literary metadata from the OpenLibrary website. It queries author and book data via an external API, processes it, and stores it in a structured relational database. A lightweight application is included for querying the data.
 
+## GitHub Project
+
+[Link of code](https://github.com/nataliapalomares/LitMiner/tree/main)
+
 ## Project structure
 ```bash
 LitMiner/
