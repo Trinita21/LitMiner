@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 from lxml import etree
 import streamlit as st
 import re
+import time
+import ollama
 
 # --- DB Connection ---
 @st.cache_resource
@@ -18,19 +20,15 @@ def connect_db():
 conn = connect_db()
 cursor = conn.cursor()
 
-# --- XML Conversion ---
-
+# --- Helper Functions ---
 def clean_text(text):
     if text:
         return text.replace('\r\n', '\n').replace('\r', '\n').strip()
     return ""
 
 def clean_description(text):
-    # Remove leading/trailing whitespace
     text = text.strip()
-    # Replace multiple newlines and spaces with single space
     text = re.sub(r'\s+', ' ', text)
-    # Optional: wrap long text if you want formatting (for terminal or basic HTML)
     return text
 
 def books_to_xml(books):
@@ -42,59 +40,108 @@ def books_to_xml(books):
         etree.SubElement(book_elem, "Description").text = clean_description(clean_text(book[2]))
     return etree.tostring(root, pretty_print=True, encoding="unicode")
 
+def format_books_for_context(books):
+    context = ""
+    for book in books:
+        context += f"Title: {book[1]}\nDescription: {book[2]}\n\n"
+    return context.strip()
+
+def generate_chat_response(context, user_message):
+    full_prompt = f"""
+You are a helpful assistant that answers questions based on book descriptions.
+
+Context:
+{context}
+
+User: {user_message}
+Assistant:"""
+    response = ollama.chat(model='llama3', messages=[
+        {"role": "user", "content": full_prompt}
+    ])
+    return response['message']['content']
+
 # --- Streamlit UI ---
+st.set_page_config(layout="wide")
 st.title("📚 OpenLibrary Full-Text Book Search")
 
-search_term = st.text_input("Enter a search term for book descriptions", "love")
+# --- Layout with Columns ---
+left, right = st.columns([2, 1])
 
-if "results" not in st.session_state:
-    st.session_state.results = None
-if "xml_output" not in st.session_state:
-    st.session_state.xml_output = None
+# --- LEFT PANEL: Search, XML, XPath ---
+with left:
+    search_term = st.text_input("Enter a search term for book descriptions", "love")
 
-if st.button("Search"):
-    query = search_term.replace(" ", " & ")
-    cursor.execute("""
-        SELECT "BookID", "title", "description"
-        FROM "Book"
-        WHERE to_tsvector('english', "description") @@ to_tsquery(%s)
-    """, (query,))
-    results = cursor.fetchall()
-
-    if results:
-        st.success(f"✅ Found {len(results)} matching books")
-        st.session_state.results = results
-        st.session_state.xml_output = books_to_xml(results)
-    else:
-        st.warning("No matching books found.")
+    if "results" not in st.session_state:
         st.session_state.results = None
+    if "xml_output" not in st.session_state:
         st.session_state.xml_output = None
 
-# --- Display Results ---
-if st.session_state.results:
-    st.subheader("🔍 Search Results")
-    for book in st.session_state.results:
-        st.markdown(f"**{book[1]}** (`{book[0]}`)")
-        st.text(book[2])
-        st.markdown("---")
+    if st.button("Search"):
+        query = search_term.replace(" ", " & ")
+        cursor.execute("""
+            SELECT "BookID", "title", "description"
+            FROM "Book"
+            WHERE to_tsvector('english', "description") @@ to_tsquery(%s)
+        """, (query,))
+        results = cursor.fetchall()
 
-    # XML Output
-    st.subheader("🧾 XML Output")
-    st.code(st.session_state.xml_output, language="xml")
+        if results:
+            st.success(f"✅ Found {len(results)} matching books")
+            st.session_state.results = results
+            st.session_state.xml_output = books_to_xml(results)
+        else:
+            st.warning("No matching books found.")
+            st.session_state.results = None
+            st.session_state.xml_output = None
 
-    # XPath Search
-    st.subheader("🔎 XPath Query")
-    xpath_query = st.text_input("Enter an XPath (e.g., //Book[contains(Description, 'robot')]/Title/text())")
+    if st.session_state.results:
+        st.subheader("🔍 Search Results")
+        for book in st.session_state.results:
+            st.markdown(f"**{book[1]}** (`{book[0]}`)")
+            st.text(book[2])
+            st.markdown("---")
 
-    if xpath_query:
-        try:
-            tree = etree.fromstring(st.session_state.xml_output)
-            xpath_results = tree.xpath(xpath_query)
-            st.success("XPath Results:")
-            st.write(xpath_results)
-        except Exception as e:
-            st.error(f"XPath Error: {e}")
+        st.subheader("🧾 XML Output")
+        st.code(st.session_state.xml_output, language="xml")
 
-    # Save to file
-    with open("search_results.xml", "w", encoding="utf-8") as f:
-        f.write(st.session_state.xml_output)
+        st.subheader("🔎 XPath Query")
+        xpath_query = st.text_input("Enter an XPath (e.g., //Book[contains(Description, 'robot')]/Title/text())")
+
+        if xpath_query:
+            try:
+                tree = etree.fromstring(st.session_state.xml_output)
+                xpath_results = tree.xpath(xpath_query)
+                st.success("XPath Results:")
+                st.write(xpath_results)
+            except Exception as e:
+                st.error(f"XPath Error: {e}")
+
+        # Save to file
+        with open("search_results.xml", "w", encoding="utf-8") as f:
+            f.write(st.session_state.xml_output)
+
+# --- RIGHT PANEL: Chatbot UI ---
+with right:
+    st.subheader("💬 Chat with Books")
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    if st.session_state.results:
+        user_input = st.text_input("Ask a question based on the books above:")
+
+        if user_input:
+            st.session_state.chat_history.append(("user", user_input))
+            with st.spinner("Generating response..."):
+                context = format_books_for_context(st.session_state.results)
+                response = generate_chat_response(context, user_input)
+            st.session_state.chat_history.append(("assistant", response))
+
+        for role, msg in st.session_state.chat_history:
+            if role == "user":
+                st.markdown(f"**You:** {msg}")
+            else:
+                st.markdown(f"**Bot:** {msg}")
+    else:
+        st.info("🔍 Please run a search first. The chatbot only works based on current search results.")
+
