@@ -4,7 +4,6 @@ import json
 import re
 import sys
 import csv
-import traceback
 from datetime import datetime
 
 def sql_escape(s):
@@ -146,8 +145,8 @@ def generate_authorInsert(filename):
             alternate_names_sql = safe_sql_value(json.dumps(alternate_names) if alternate_names else None)
             key_sql = f"'{sql_escape(key)}'" if key else "NULL"
 
-            sql = f"""INSERT INTO Author (
-                AuthorID, name, bio, entity_type, birth_date, birth_year,
+            sql = f"""INSERT INTO public."Author" (
+                "AuthorID", name, bio, entity_type, birth_date, birth_year,
                 personal_name, death_date, death_year, title, alternate_names,
                 keyVal, created, last_modified
             ) VALUES (
@@ -254,8 +253,8 @@ def generate_authorInsert(filename):
                 title = f"'{sql_escape(title)}'" if title else "NULL"
 
 
-                book_sql = f"""INSERT INTO Book (
-                    BookID, title, description, first_publish_date, first_publish_year,
+                book_sql = f"""INSERT INTO public."Book" (
+                    "BookID", title, description, first_publish_date, first_publish_year,
                     created, last_modified
                 ) VALUES (
                     '{work_id}', {title}, {description}, {first_publish_date},
@@ -263,9 +262,7 @@ def generate_authorInsert(filename):
                 );"""
                 book_statements.append(book_sql)
 
-            count = count + 1
-            if count > 50:
-                break
+            
 
         except Exception as e:
             exc_type, exc_obj, tb = sys.exc_info()
@@ -290,12 +287,12 @@ def generate_coverScript(coversFullList,coverBookStatements):
     coverBookStatements = list(set(coverBookStatements))
     with open('insert_covers.sql', 'w', encoding='utf-8') as f:
         for cover in coversFullList:
-            sql_CoverBook = f"""INSERT INTO Cover (CoverID) VALUES ({cover});"""
+            sql_CoverBook = f"""INSERT INTO public."Cover" ("CoverID") VALUES ({cover});"""
             f.write(sql_CoverBook + '\n')
 
     with open('inser_bookCover.sql','w',encoding='utf-8') as f:
         for (work_id,cover) in coverBookStatements:
-            sql_CoverBook = f"""INSERT INTO BooksCover (BookID, CoverID) 
+            sql_CoverBook = f"""INSERT INTO public."BooksCover" ("BookID", "CoverID") 
                                         VALUES ('{work_id}',{cover});"""
             f.write(sql_CoverBook + '\n')
 
@@ -308,7 +305,7 @@ def generate_booksByAuthor(author_book_roles):
     
     with open('insert_bookAuthors.sql', 'w', encoding='utf-8') as f:
         for author_id, book_id, role in author_book_roles:
-            sql_authorxBook = f"""INSERT INTO BooksAuthors (AuthorID, BookID, rol_type) 
+            sql_authorxBook = f"""INSERT INTO public."BooksAuthors" ("AuthorID", "BookID", rol_type) 
                                 VALUES ('{author_id}', '{book_id}', '{role}');"""
             f.write(sql_authorxBook + '\n')
 
@@ -320,7 +317,7 @@ def generate_subjectScript(subject_entries,subjectXBooks):
     with open('insert_subjects.sql', 'w', encoding='utf-8') as f:
         for subject_type, description in sorted(subject_entries):
             description_sql  = f"'{sql_escape(description)}'" if description else "NULL"
-            sql = f"""INSERT INTO Subjects (SubjectID, subj_type, description) 
+            sql = f"""INSERT INTO public."Subjects" ("SubjectID", subj_type, description)  
                     VALUES ({subject_id}, '{subject_type}', {description_sql});"""
             f.write(sql + '\n')
             
@@ -330,7 +327,7 @@ def generate_subjectScript(subject_entries,subjectXBooks):
     with open('insert_subjectXBook.sql','w',encoding='utf-8') as f:
         for work_id, (stype, sdesc) in subjectXBooks:
             sid = subject_id_map[(stype, sdesc)]
-            sql = f"INSERT INTO BookSubjects (BookID, SubjectID) VALUES ('{work_id}', {sid});"
+            sql = f"""INSERT INTO public."BookSubjects" ("BookID", "SubjectID") VALUES ('{work_id}', {sid});"""
             f.write(sql + '\n')
 
 filename = "author_ids.csv"

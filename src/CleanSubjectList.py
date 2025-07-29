@@ -62,7 +62,7 @@ def remove_duplicateSubjects(input_subjects,input_bookSubjects):
                 new_subject_id = old_id_map.get(old_subject_id)
 
                 if new_subject_id:  # only keep valid ones
-                    new_line = f"INSERT INTO BookSubjects (BookID, SubjectID) VALUES ('{book_id}', {new_subject_id});\n"
+                    new_line = f"""INSERT INTO public."BookSubjects" ("BookID", "SubjectID") VALUES ('{book_id}', {new_subject_id});\n"""
                     updated_lines.append(new_line)
 
     # Save the updated insert_bookSubjects.sql
