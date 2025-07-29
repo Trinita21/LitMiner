@@ -7,24 +7,34 @@ LitMiner is a Text Technology project designed to extract, store, and search lit
 LitMiner/
 ├── sample_scripts/
 │   ├── createDB_scripts/
-│   │   └── LitMinerDB.sql             # SQL script to create DB schema and constraints
+│   │   └── LitMinerDB.sql
 │   ├── insert_scripts/
-│   │   ├── insert_authors.sql         # SQL script to insert author data
-│   │   ├── insert_books.sql           # SQL script to insert book data
-│   │   ├── insert_bookAuthors.sql     # SQL script to insert book author
-│   │   ├── insert_bookCover.sql       # SQL script to insert book cover image
-│   │   ├── insert_covers.sql          # SQL script to insert cover data
-│   │   ├── insert_subjects.sql        # SQL script to insert subject terms
-│   │   └── insert_subjectXBook.sql    # SQL script to insert subject-book associations
+│   │   ├── insert_authors.sql
+│   │   ├── insert_books.sql
+│   │   ├── insert_bookAuthors.sql
+│   │   ├── insert_bookCover.sql
+│   │   ├── insert_covers.sql
+│   │   ├── insert_subjects.sql
+│   │   └── insert_subjectXBook.sql
 ├── src/
-│   ├── .env                           # Environment variables for DB connection
-│   ├── CleanSubjectList.py           # Cleans and normalizes subject list (handles special characters, apostrophes, etc.)
-│   └── ExtractData.py                # Main data extraction script using OpenLibrary API
-├── LitMinerDB.png                    # Database ER diagram
-├── app.py                            # Simple search interface to query stored data
-├── db_query_trial.py                 # Script to test database queries
-└── search_result.xml                 # Sample XML output of search results
+│   ├── .env
+│   ├── CleanSubjectList.py
+│   └── ExtractData.py
+├── LitMinerDB.png
+├── requirements.txt
+├── app.py
+├── db_query_trial.py
+└── search_result.xml
 ```
+
+## 🧠 Project Overview
+- **ExtractData.py:** Fetches authors and their works from the OpenLibrary API
+- **CleanSubjectList.py:** Cleans up subject strings (e.g., special characters, apostrophes).
+- **app.py:** Search application to query the existing database.
+- **LitMinerDB.sql:** Contains the schema used to create the database.
+- **search_result.xml:** Shows a sample output.
+
+	> Sample data is already inserted into the database using the provided SQL scripts.
 
 ## 🚀 Getting Started
 Prerequisites
@@ -37,26 +47,18 @@ Prerequisites
 ```bash
 pip install -r requirements.txt
 ```
-	> Note: You’ll need to set up a .env file with your DB connection credentials.
 
 ## 🛠️ How It Works
 
- 1. Database Setup (Optional):
- - Run sample_scripts/createDB_scripts/LitMinerDB.sql to create the database schema and set up foreign key constraints.
+ 1. Database Setup:
+ - We run sample_scripts/createDB_scripts/LitMinerDB.sql to create the database schema and set up foreign key constraints.
 	> See LitMinerDB.png for visual diagram of the database schema
 
- 2. Data Insertion (Optional):
- - Use scripts in sample_scripts/insert_scripts/ to populate the tables with sample data.
- - Alternatively, use ExtractData.py to dynamically retrieve author and book data via the API.
+ 2. Data Insertion:
+ - Used ExtractData.py to dynamically retrieve author and book data via the API and generate sql script (check sample_scripts/insert_scripts/) to populate the tables with sample data.
 
- 3. Database conection (Optional):
-
-Create a .env file inside the src/ directory with the following structure:
-DB_HOST=localhost
-DB_NAME=your_db_name
-DB_USER=your_username
-DB_PASSWORD=your_password
-
+ 3. Database conection:
+ - Use the parameters in .env file inside the src/ directory to establish connection with the DB
 
  4. Querying and Search:
 
@@ -64,10 +66,7 @@ DB_PASSWORD=your_password
 - db_query_trial.py includes example query logic.
 ![-](https://raw.githubusercontent.com/nataliapalomares/LitMiner/refs/heads/main/app_images/appy_search.jpeg)
 ![-](https://raw.githubusercontent.com/nataliapalomares/LitMiner/refs/heads/main/app_images/appy_trial.jpeg)
-- search_result.xml shows a sample output in XML format.
-
-## 🔎 Sample Output
-A sample XML output (search_result.xml) is provided to illustrate how the data might be returned or exported.
+- A sample XML output (search_result.xml) is provided to illustrate how the data might be returned or exported.
 
 ## 👩‍💻 Authors & Acknowledgments
 Natalia Palomares & Trinita Roy
